@@ -1,13 +1,16 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.cache import never_cache
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate, login, logout
 from .forms import RegisterForm
+from .models import Head
 
 # Create your views here.
 @login_required
 def home_view(request):
-    return render(request, 'home/home.html')
+    username = request.user.get_username()
+    return render(request, 'home/home.html', {'username': username, 'user': request.user})
 
 def login_view(request):
     if request.method == "POST":
@@ -25,14 +28,26 @@ def login_view(request):
 
 @login_required
 def stocks_view(request):
-    return render(request, 'home/stocks.html')
+    query = request.GET.get('q')
+    sale_status = request.GET.get('sale_status')
+    heads = Head.objects.all()
+    
+    if query:
+        heads = heads.filter(animal__icontains=query)
+
+    if sale_status == '1':
+        heads = heads.filter(ready_for_sale=True)
+    elif sale_status == '0':
+        heads = heads.filter(ready_for_sale=False)
+
+    return render(request, 'home/stocks.html', {"heads": heads})
 
 def logout_view(request):
     if request.method == "POST":
         logout(request)
         return redirect("login")
     else:
-        return redirect('home')
+        return render(request, "accounts/logout.html")
 
 def register_view(request):
     if request.method == "POST":
@@ -46,3 +61,10 @@ def register_view(request):
         else:
             return render(request, 'accounts/register.html', {"form": form})
     return render(request, 'accounts/register.html', {"form": RegisterForm(request.POST)})
+
+@login_required
+def shipping_view(request):
+    return render(request, 'home/shipping.html')
+
+def about_view(request):
+    return render(request, 'home/about.html')    
